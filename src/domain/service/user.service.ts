@@ -28,6 +28,19 @@ export class UserService {
     return this.toResponseDto(user);
   }
 
+  findByEmail(email: string): UserResponseDto {
+    this.logger.log(`Starting to retrieve user with email: ${email}`);
+    const user = this.users.find(u => u.email === email);
+    
+    if (!user) {
+      this.logger.error(`User with email ${email} not found`);
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+    
+    this.logger.log(`Successfully retrieved user with email: ${email}`);
+    return this.toResponseDto(user);
+  }
+
   create(createUserDto: CreateUserDto): UserResponseDto {
     this.logger.log(`Starting to create user with email: ${createUserDto.email}`);
     

@@ -10,14 +10,38 @@ import {
   HttpCode,
   HttpStatus 
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../../domain/service/user.service';
-import { CreateUserDto, UpdateUserDto, UserResponseDto } from '../../domain/dto/user.dto';
+import { CreateUserDto, UpdateUserDto, UserResponseDto, LoginUserDto, LoginResponseDto } from '../../domain/dto/user.dto';
 
 @Controller('users')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
 
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly jwtService: JwtService
+  ) {}
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() loginUserDto: LoginUserDto): Promise<LoginResponseDto> {
+    this.logger.log(`Processing login request for email: ${loginUserDto.email}`);
+    
+    // Em um projeto real, você validaria a senha com hash
+    // Por simplicidade, vamos assumir que o usuário existe
+    const user = this.userService.findByEmail(loginUserDto.email);
+    
+    const payload = { sub: user.id, email: user.email };
+    const accessToken = await this.jwtService.signAsync(payload);
+    
+    this.logger.log(`Successfully generated token for user: ${user.id}`);
+    
+    return {
+      accessToken,
+      user
+    };
+  }
 
   @Get()
   findAll(): UserResponseDto[] {

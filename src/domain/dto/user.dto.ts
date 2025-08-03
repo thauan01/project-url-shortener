@@ -1,6 +1,12 @@
 export class CreateUserDto {
   name: string;
   email: string;
+  password: string;
+}
+
+export class LoginUserDto {
+  email: string;
+  password: string;
 }
 
 export class UpdateUserDto {
@@ -14,4 +20,9 @@ export class UserResponseDto {
   email: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export class LoginResponseDto {
+  accessToken: string;
+  user: UserResponseDto;
 }

@@ -8,12 +8,14 @@ import {
   HttpCode,
   HttpStatus,
   Res,
-  Query
+  Query,
+  UseGuards
 } from '@nestjs/common';
 import { Response } from 'express';
 import { UrlService } from '../../domain/service/url.service';
 import { CreateUrlDto, UrlResponseDto } from '../../domain/dto/url.dto';
-import { OptionalUser } from '../decorator/optional-user.decorator';
+import { OptionalUser } from '../decorator/user.decorator';
+import { OptionalJwtAuthGuard } from '../guard/optional-jwt-auth.guard';
 
 @Controller()
 export class UrlController {
@@ -23,15 +25,17 @@ export class UrlController {
 
   /**
    * Encurta uma URL - PÚBLICO
-   * Qualquer um pode usar, mas se autenticado (x-user-id header), associa ao usuário
+   * Qualquer um pode usar, mas se autenticado (JWT token), associa ao usuário
    * POST /shorten
    */
   @Post('shorten')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(OptionalJwtAuthGuard)
   shortenUrl(
     @Body() createUrlDto: CreateUrlDto,
-    @OptionalUser() userId?: string
+    @OptionalUser() user?: any
   ): UrlResponseDto {
+    const userId = user?.userId || "";
     this.logger.log(`Processing request to shorten URL: ${createUrlDto.originalUrl}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
     const result = this.urlService.shortenUrl(createUrlDto, userId);
     this.logger.log(`Successfully shortened URL with code: ${result.shortCode}`);
