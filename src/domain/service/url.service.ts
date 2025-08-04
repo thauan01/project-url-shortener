@@ -1,52 +1,44 @@
-import { Injectable, NotFoundException, ConflictException, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { nanoid } from 'nanoid';
 import { Url } from '../entity/url.entity';
 import { CreateUrlDto, UrlResponseDto } from '../dto/url.dto';
 import { UserService } from './user.service';
+import { UrlRepository } from '../../adapter/repository/url.repository';
 
 @Injectable()
-export class UrlService {
+export class UrlService implements OnModuleInit {
   private readonly logger = new Logger(UrlService.name);
   private urls: Url[] = [];
-  private currentId = 1;
   private readonly baseUrl = 'http://localhost:3000'; // Configure conforme necessário
 
   constructor(
     @Inject(forwardRef(() => UserService))
-    private readonly userService: UserService
+    private readonly userService: UserService,
+    private readonly urlRepository: UrlRepository,
   ) {}
+
+  /**
+   * Inicializa o service carregando todas as URLs do banco de dados
+   */
+  async onModuleInit() {
+    this.logger.log('Initializing UrlService - loading URLs from database');
+    try {
+      this.urls = await this.urlRepository.findAll();
+      this.logger.log(`Loaded ${this.urls.length} URLs from database`);
+    } catch (error) {
+      this.logger.error('Failed to load URLs from database', error);
+      throw error;
+    }
+  }
 
   /**
    * Encurta uma URL gerando um código único de 6 caracteres
    * Se userId for fornecido, associa a URL ao usuário
    */
-  shortenUrl(createUrlDto: CreateUrlDto, userId?: string): UrlResponseDto {
+  async shortenUrl(createUrlDto: CreateUrlDto, userId?: string): Promise<UrlResponseDto> {
     this.logger.log(`Starting to shorten URL: ${createUrlDto.originalUrl}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
     
-    // Validar se a URL é válida
-    if (!this.isValidUrl(createUrlDto.originalUrl)) {
-      throw new ConflictException('Invalid URL format');
-    }
-
-    // Se userId for fornecido, verificar se o usuário existe
-    if (userId) {
-      try {
-        this.userService.findById(userId);
-      } catch (error) {
-        throw new NotFoundException(`User with ID ${userId} not found`);
-      }
-    }
-
-    // Verificar se a URL já foi encurtada pelo mesmo usuário (ou anonimamente)
-    const existingUrl = this.urls.find(u => 
-      u.originalUrl === createUrlDto.originalUrl && 
-      u.userId === userId
-    );
-    
-    if (existingUrl) {
-      this.logger.log(`URL already exists with short code: ${existingUrl.shortCode}`);
-      return this.toResponseDto(existingUrl);
-    }
+    this.validateRequisition(createUrlDto);    
 
     // Gerar código único de 6 caracteres usando nanoid
     let shortCode: string;
@@ -63,26 +55,32 @@ export class UrlService {
     } while (this.urls.some(u => u.shortCode === shortCode));
 
     // Criar nova URL encurtada
-    const newUrl = new Url(
-      this.currentId.toString(),
-      createUrlDto.originalUrl,
+    const urlData = {
+      originalUrl: createUrlDto.originalUrl,
       shortCode,
-      new Date(),
-      0,
+      accessCount: 0,
       userId,
-    );
-    
-    this.urls.push(newUrl);
-    this.currentId++;
-    
-    this.logger.log(`Successfully shortened URL with code: ${shortCode}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
-    return this.toResponseDto(newUrl);
+    };
+
+    try {
+      // Salvar no banco de dados
+      const savedUrl = await this.urlRepository.create(urlData);
+      
+      // Adicionar à lista em memória
+      this.urls.push(savedUrl);
+      
+      this.logger.log(`Successfully shortened URL with code: ${shortCode}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
+      return this.toResponseDto(savedUrl);
+    } catch (error) {
+      this.logger.error('Failed to save URL to database', error);
+      throw new ConflictException('Failed to create shortened URL');
+    }
   }
 
   /**
    * Redireciona para a URL original usando o código curto
    */
-  getOriginalUrl(shortCode: string): string {
+  async getOriginalUrl(shortCode: string): Promise<string> {
     this.logger.log(`Looking for URL with short code: ${shortCode}`);
     
     const url = this.urls.find(u => u.shortCode === shortCode);
@@ -92,11 +90,20 @@ export class UrlService {
       throw new NotFoundException(`Short code ${shortCode} not found`);
     }
 
-    // Incrementar contador de acesso
-    url.accessCount++;
-    
-    this.logger.log(`Redirecting to: ${url.originalUrl}`);
-    return url.originalUrl;
+    try {
+      // Incrementar contador de acesso no banco de dados
+      await this.urlRepository.incrementAccessCount(url.id);
+      
+      // Atualizar também na memória
+      url.accessCount++;
+      
+      this.logger.log(`Redirecting to: ${url.originalUrl}`);
+      return url.originalUrl;
+    } catch (error) {
+      this.logger.error('Failed to increment access count', error);
+      // Mesmo se falhar o incremento, retorna a URL original
+      return url.originalUrl;
+    }
   }
 
   /**
@@ -131,31 +138,34 @@ export class UrlService {
   }
 
   /**
-   * Busca URL por código curto
-   */
-  getUrlByShortCode(shortCode: string): UrlResponseDto {
-    this.logger.log(`Retrieving URL with short code: ${shortCode}`);
-    
-    const url = this.urls.find(u => u.shortCode === shortCode);
-    
-    if (!url) {
-      this.logger.error(`Short code ${shortCode} not found`);
-      throw new NotFoundException(`Short code ${shortCode} not found`);
-    }
-    
-    return this.toResponseDto(url);
-  }
-
-  /**
    * Gera um novo código curto (útil para regenerar)
    */
   generateShortCode(length: number = 6): string {
     return nanoid(length);
   }
 
-  /**
-   * Valida se a string é uma URL válida
-   */
+  private validateRequisition(createUrlDto: CreateUrlDto, userId?: string): void {
+    if (!this.isValidUrl(createUrlDto.originalUrl)) {
+      throw new ConflictException('Invalid URL format');
+    }
+    // Se userId for fornecido, verificar se o usuário existe
+    if (userId) {
+      try {
+        this.userService.findById(userId);
+      } catch (error) {
+        throw new NotFoundException(`User with ID ${userId} not found`);
+      }
+    }
+
+    const existingUrl = this.urls.find(u => 
+      u.originalUrl === createUrlDto.originalUrl
+    );
+    
+    if (existingUrl) {
+      this.logger.log(`URL already exists with short code: ${existingUrl.shortCode}`);
+      return;
+    }
+  }
   private isValidUrl(string: string): boolean {
     try {
       new URL(string);

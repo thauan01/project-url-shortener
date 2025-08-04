@@ -1,20 +1,22 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  Logger,
+import {
+  Body,
+  Controller,
+  Get,
   HttpCode,
   HttpStatus,
-  Res,
+  Logger,
+  Param,
+  Post,
   Query,
+  Res,
   UseGuards
 } from '@nestjs/common';
 import { Response } from 'express';
-import { UrlService } from '../../domain/service/url.service';
 import { CreateUrlDto, UrlResponseDto } from '../../domain/dto/url.dto';
-import { OptionalUser } from '../decorator/user.decorator';
+import { AuthenticatedUser } from '../../domain/interfaces/authenticated-user.interface';
+import { UrlService } from '../../domain/service/url.service';
+import { CurrentUser, OptionalUser } from '../decorator/user.decorator';
+import { JwtAuthGuard } from '../guard/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../guard/optional-jwt-auth.guard';
 
 @Controller()
@@ -31,13 +33,13 @@ export class UrlController {
   @Post('shorten')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(OptionalJwtAuthGuard)
-  shortenUrl(
+  async shortenUrl(
     @Body() createUrlDto: CreateUrlDto,
     @OptionalUser() user?: any
-  ): UrlResponseDto {
+  ): Promise<UrlResponseDto> {
     const userId = user?.userId || "";
     this.logger.log(`Processing request to shorten URL: ${createUrlDto.originalUrl}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
-    const result = this.urlService.shortenUrl(createUrlDto, userId);
+    const result = await this.urlService.shortenUrl(createUrlDto, userId);
     this.logger.log(`Successfully shortened URL with code: ${result.shortCode}`);
     return result;
   }
@@ -55,26 +57,15 @@ export class UrlController {
   }
 
   /**
-   * Lista URLs de um usuário específico
-   * GET /users/:userId/urls
+   * Lista as URLs do usuário autenticado - REQUER AUTENTICAÇÃO
+   * GET /my-urls
    */
-  @Get('users/:userId/urls')
-  getUserUrls(@Param('userId') userId: string): UrlResponseDto[] {
-    this.logger.log(`Processing request to get URLs for user: ${userId}`);
-    const result = this.urlService.getUserUrls(userId);
-    this.logger.log(`Retrieved ${result.length} URLs for user: ${userId}`);
-    return result;
-  }
-
-  /**
-   * Busca informações de uma URL pelo código curto
-   * GET /info/:shortCode
-   */
-  @Get('info/:shortCode')
-  getUrlInfo(@Param('shortCode') shortCode: string): UrlResponseDto {
-    this.logger.log(`Processing request to get info for short code: ${shortCode}`);
-    const result = this.urlService.getUrlByShortCode(shortCode);
-    this.logger.log(`Retrieved info for short code: ${shortCode}`);
+  @Get('my-urls')
+  @UseGuards(JwtAuthGuard)
+  getMyUrls(@CurrentUser() user: AuthenticatedUser): UrlResponseDto[] {
+    this.logger.log(`Processing request to get URLs for authenticated user: ${user.userId}`);
+    const result = this.urlService.getUserUrls(user.userId);
+    this.logger.log(`Retrieved ${result.length} URLs for user: ${user.userId}`);
     return result;
   }
 
@@ -83,14 +74,14 @@ export class UrlController {
    * GET /:shortCode
    */
   @Get(':shortCode')
-  redirectToOriginal(
+  async redirectToOriginal(
     @Param('shortCode') shortCode: string,
     @Res() res: Response
-  ): void {
+  ): Promise<void> {
     this.logger.log(`Processing redirect request for short code: ${shortCode}`);
     
     try {
-      const originalUrl = this.urlService.getOriginalUrl(shortCode);
+      const originalUrl = await this.urlService.getOriginalUrl(shortCode);
       this.logger.log(`Redirecting ${shortCode} to ${originalUrl}`);
       res.redirect(302, originalUrl);
     } catch (error) {

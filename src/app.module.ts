@@ -11,19 +11,20 @@ import { User } from './domain/entity/user.entity';
 import { Url } from './domain/entity/url.entity';
 import { UserRepository } from './adapter/repository/user.repository';
 import { UrlRepository } from './adapter/repository/url.repository';
+import { environmentConfig } from './configs/environment.config';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT) || 5432,
-      username: process.env.DB_USERNAME || 'postgres',
-      password: process.env.DB_PASSWORD || 'password',
-      database: process.env.DB_NAME || 'url_shortener',
+      host: environmentConfig.postgresHost,
+      port: Number(environmentConfig.postgresPort),
+      username: environmentConfig.postgresUser,
+      password: environmentConfig.postgresPassword,
+      database: environmentConfig.postgresDb,
       entities: [User, Url],
-      synchronize: process.env.NODE_ENV !== 'production', // Apenas em desenvolvimento
-      logging: process.env.NODE_ENV === 'development',
+      synchronize: environmentConfig.nodeEnv !== 'production',
+      logging: environmentConfig.nodeEnv === 'development',
     }),
     TypeOrmModule.forFeature([User, Url]),
     PassportModule,

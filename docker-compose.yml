@@ -5,14 +5,14 @@ services:
     image: postgres:15
     container_name: url_shortener_db
     environment:
-      POSTGRES_DB: url_shortener
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: url-shortener-database
+      POSTGRES_USER: url-shortener-user
+      POSTGRES_PASSWORD: url-shortener-password
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
+    restart: always
 
 volumes:
   postgres_data:
