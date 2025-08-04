@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Url } from '../../domain/entity/url.entity';
+import { IUrlRepository } from '../../domain/interfaces/url-repository.interface';
 
 @Injectable()
-export class UrlRepository {
+export class UrlRepository implements IUrlRepository {
   constructor(
     @InjectRepository(Url)
     private readonly urlRepository: Repository<Url>,

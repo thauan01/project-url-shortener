@@ -3,7 +3,8 @@ import { nanoid } from 'nanoid';
 import { Url } from '../entity/url.entity';
 import { CreateUrlDto, UrlResponseDto } from '../dto/url.dto';
 import { UserService } from './user.service';
-import { UrlRepository } from '../../adapter/repository/url.repository';
+import { DI_URL_REPOSITORY } from '../../configs/container-names';
+import { IUrlRepository } from '../interfaces/url-repository.interface';
 
 @Injectable()
 export class UrlService implements OnModuleInit {
@@ -14,7 +15,8 @@ export class UrlService implements OnModuleInit {
   constructor(
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
-    private readonly urlRepository: UrlRepository,
+    @Inject(DI_URL_REPOSITORY)
+    private readonly urlRepository: IUrlRepository,
   ) {}
 
   /**
@@ -35,10 +37,10 @@ export class UrlService implements OnModuleInit {
    * Encurta uma URL gerando um código único de 6 caracteres
    * Se userId for fornecido, associa a URL ao usuário
    */
-  async shortenUrl(createUrlDto: CreateUrlDto, userId?: string): Promise<UrlResponseDto> {
+  async shortenUrl(createUrlDto: CreateUrlDto, userId?: string | null): Promise<UrlResponseDto> {
     this.logger.log(`Starting to shorten URL: ${createUrlDto.originalUrl}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
     
-    this.validateRequisition(createUrlDto);    
+    if (!this.isValidRequisition(createUrlDto, userId)) throw new ConflictException('Invalid Requisition');
 
     // Gerar código único de 6 caracteres usando nanoid
     let shortCode: string;
@@ -54,13 +56,17 @@ export class UrlService implements OnModuleInit {
       }
     } while (this.urls.some(u => u.shortCode === shortCode));
 
-    // Criar nova URL encurtada
-    const urlData = {
+    // Criar nova URL encurtada - só incluir userId se não for null/undefined
+    const urlData: any = {
       originalUrl: createUrlDto.originalUrl,
       shortCode,
       accessCount: 0,
-      userId,
     };
+
+    // Só adicionar userId se ele existir e não for uma string vazia
+    if (userId && userId.trim() !== '') {
+      urlData.userId = userId;
+    }
 
     try {
       // Salvar no banco de dados
@@ -110,31 +116,31 @@ export class UrlService implements OnModuleInit {
    * Lista todas as URLs encurtadas
    * Se userId for fornecido, filtra apenas as URLs do usuário
    */
-  getAllUrls(userId?: string): UrlResponseDto[] {
+  async getAllUrls(userId?: string | null): Promise<UrlResponseDto[]> {
     this.logger.log(`Retrieving URLs${userId ? ` for user: ${userId}` : ' (all)'}`);
     
     const filteredUrls = userId 
       ? this.urls.filter(url => url.userId === userId)
       : this.urls;
       
-    return filteredUrls.map(url => this.toResponseDto(url));
+    return Promise.all(filteredUrls.map(url => this.toResponseDto(url)));
   }
 
   /**
    * Lista URLs do usuário específico
    */
-  getUserUrls(userId: string): UrlResponseDto[] {
+  async getUserUrls(userId: string): Promise<UrlResponseDto[]> {
     this.logger.log(`Retrieving URLs for user: ${userId}`);
     
     // Verificar se o usuário existe
     try {
-      this.userService.findById(userId);
+      await this.userService.findById(userId);
     } catch (error) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
     
     const userUrls = this.urls.filter(url => url.userId === userId);
-    return userUrls.map(url => this.toResponseDto(url));
+    return Promise.all(userUrls.map(url => this.toResponseDto(url)));
   }
 
   /**
@@ -144,12 +150,12 @@ export class UrlService implements OnModuleInit {
     return nanoid(length);
   }
 
-  private validateRequisition(createUrlDto: CreateUrlDto, userId?: string): void {
+  private isValidRequisition(createUrlDto: CreateUrlDto, userId?: string | null): boolean {
     if (!this.isValidUrl(createUrlDto.originalUrl)) {
       throw new ConflictException('Invalid URL format');
     }
-    // Se userId for fornecido, verificar se o usuário existe
-    if (userId) {
+    // Se userId for fornecido e não for vazio, verificar se o usuário existe
+    if (userId && userId.trim() !== '') {
       try {
         this.userService.findById(userId);
       } catch (error) {
@@ -163,8 +169,9 @@ export class UrlService implements OnModuleInit {
     
     if (existingUrl) {
       this.logger.log(`URL already exists with short code: ${existingUrl.shortCode}`);
-      return;
+      return false;
     }
+    return true;
   }
   private isValidUrl(string: string): boolean {
     try {
@@ -178,7 +185,7 @@ export class UrlService implements OnModuleInit {
   /**
    * Converte entidade para DTO de resposta
    */
-  private toResponseDto(url: Url): UrlResponseDto {
+  private async toResponseDto(url: Url): Promise<UrlResponseDto> {
     const response: UrlResponseDto = {
       id: url.id,
       originalUrl: url.originalUrl,
@@ -191,7 +198,7 @@ export class UrlService implements OnModuleInit {
     // Adicionar informações do usuário se a URL pertencer a alguém
     if (url.userId) {
       try {
-        const user = this.userService.findById(url.userId);
+        const user = await this.userService.findById(url.userId);
         response.userId = url.userId;
         response.userName = user.name;
       } catch (error) {

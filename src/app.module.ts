@@ -12,6 +12,7 @@ import { Url } from './domain/entity/url.entity';
 import { UserRepository } from './adapter/repository/user.repository';
 import { UrlRepository } from './adapter/repository/url.repository';
 import { environmentConfig } from './configs/environment.config';
+import { DI_URL_REPOSITORY, DI_USER_REPOSITORY } from './configs/container-names';
 
 @Module({
   imports: [
@@ -34,6 +35,12 @@ import { environmentConfig } from './configs/environment.config';
     }),
   ],
   controllers: [UserController, UrlController],
-  providers: [UserService, UrlService, JwtStrategy, UserRepository, UrlRepository],
+  providers: [
+    UserService, 
+    UrlService, 
+    JwtStrategy, 
+    {provide: DI_USER_REPOSITORY, useClass: UserRepository}, 
+    {provide: DI_URL_REPOSITORY, useClass: UrlRepository}
+  ],
 })
 export class AppModule {}

@@ -37,7 +37,7 @@ export class UrlController {
     @Body() createUrlDto: CreateUrlDto,
     @OptionalUser() user?: any
   ): Promise<UrlResponseDto> {
-    const userId = user?.userId || "";
+    const userId = user?.userId || null;
     this.logger.log(`Processing request to shorten URL: ${createUrlDto.originalUrl}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
     const result = await this.urlService.shortenUrl(createUrlDto, userId);
     this.logger.log(`Successfully shortened URL with code: ${result.shortCode}`);
@@ -49,9 +49,11 @@ export class UrlController {
    * GET /urls?userId=123 (opcional)
    */
   @Get('urls')
-  getAllUrls(@Query('userId') userId?: string): UrlResponseDto[] {
-    this.logger.log(`Processing request to get URLs${userId ? ` for user: ${userId}` : ' (all)'}`);
-    const result = this.urlService.getAllUrls(userId);
+  async getAllUrls(@Query('userId') userId?: string): Promise<UrlResponseDto[]> {
+    // Converter string vazia ou undefined para null
+    const validUserId = userId && userId.trim() !== '' ? userId : null;
+    this.logger.log(`Processing request to get URLs${validUserId ? ` for user: ${validUserId}` : ' (all)'}`);
+    const result = await this.urlService.getAllUrls(validUserId);
     this.logger.log(`Retrieved ${result.length} URLs`);
     return result;
   }
@@ -62,9 +64,9 @@ export class UrlController {
    */
   @Get('my-urls')
   @UseGuards(JwtAuthGuard)
-  getMyUrls(@CurrentUser() user: AuthenticatedUser): UrlResponseDto[] {
+  async getMyUrls(@CurrentUser() user: AuthenticatedUser): Promise<UrlResponseDto[]> {
     this.logger.log(`Processing request to get URLs for authenticated user: ${user.userId}`);
-    const result = this.urlService.getUserUrls(user.userId);
+    const result = await this.urlService.getUserUrls(user.userId);
     this.logger.log(`Retrieved ${result.length} URLs for user: ${user.userId}`);
     return result;
   }
