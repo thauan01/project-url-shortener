@@ -64,7 +64,7 @@ export class UrlController {
   async getMyUrls(@CurrentUser() user: AuthenticatedUser): Promise<UrlResponseDto[]> {
     this.logger.log(`Processing request to get URLs for authenticated user: ${user.userId}`);
     const result = await this.urlService.getUserUrls(user.userId);
-    this.logger.log(`Retrieved ${result.length} URLs for user: ${user.userId}`);
+    this.logger.log(`Retrieved ${result.length} URLs for user: ${user.userId}`, result);
     return result;
   }
 
@@ -88,7 +88,7 @@ export class UrlController {
   ): Promise<UrlResponseDto> {
     this.logger.log(`Processing request to update URL with short code: ${shortCode} for user: ${user.userId}`);
     const result = await this.urlService.updateUrl(shortCode, updateUrlDto, user.userId);
-    this.logger.log(`Successfully updated URL with short code: ${shortCode} for user: ${user.userId}`);
+    this.logger.log(`Successfully updated URL with short code: ${shortCode} for user: ${user.userId}`, result);
     return result;
   }
 

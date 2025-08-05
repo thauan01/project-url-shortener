@@ -1,47 +1,42 @@
 # URL Controller
 
-O `UrlController` é o controlador principal do sistema de encurtamento de URLs. Ele gerencia todas as operações relacionadas ao encurtamento, listagem e redirecionamento de URLs, oferecendo funcionalidades tanto para usuários anônimos quanto autenticados.
+The `UrlController` is the main controller of the URL shortening system. It manages all operations related to URL shortening, listing, and redirection, offering functionalities for both anonymous and authenticated users.
 
-## Endpoints Disponíveis
+## Available Endpoints
 
-### 1. Encurtar URL (Público)
+### 1. Shorten URL (Public)
 **POST** `/shorten`
 
-Cria uma versão encurtada de uma URL fornecida. # Ver suas URLs
-curl -X GET http://localhost:3000/my-urls \
-  -H "Authorization: Bearer $TOKEN"
-```
+Creates a shortened version of a provided URL. This endpoint is public, but if the user is authenticated, the URL will be associated with their account.
 
-### 4. Editar URL Existentendpoint é público, mas se o usuário estiver autenticado, a URL será associada à sua conta.
-
-**Características:**
-- ✅ Público (não requer autenticação)
-- 🔒 Autenticação opcional (se JWT token fornecido, associa ao usuário)
-- 📊 Suporte para usuários anônimos
+**Features:**
+- ✅ Public (no authentication required)
+- 🔒 Optional authentication (if JWT token provided, associates to user)
+- 📊 Support for anonymous users
 
 **Request Body:**
 ```json
 {
-  "originalUrl": "https://www.exemplo.com/pagina-muito-longa-com-parametros?param1=valor1&param2=valor2"
+  "originalUrl": "https://www.example.com/very-long-page-with-parameters?param1=value1&param2=value2"
 }
 ```
 
 **Response (201 Created):**
 ```json
 {
-  "id": "uuid-da-url",
-  "originalUrl": "https://www.exemplo.com/pagina-muito-longa-com-parametros?param1=valor1&param2=valor2",
+  "id": "url-uuid",
+  "originalUrl": "https://www.example.com/very-long-page-with-parameters?param1=value1&param2=value2",
   "shortCode": "abc123",
   "shortUrl": "http://localhost:3000/abc123",
-  "userId": "uuid-do-usuario",
+  "userId": "user-uuid",
   "createdAt": "2025-08-04T10:30:00Z",
   "clickCount": 0
 }
 ```
 
-**Exemplos de uso:**
+**Usage Examples:**
 
-**Usuário anônimo:**
+**Anonymous user:**
 ```bash
 curl -X POST http://localhost:3000/shorten \
   -H "Content-Type: application/json" \
@@ -50,7 +45,7 @@ curl -X POST http://localhost:3000/shorten \
   }'
 ```
 
-**Usuário autenticado:**
+**Authenticated user:**
 ```bash
 curl -X POST http://localhost:3000/shorten \
   -H "Content-Type: application/json" \
@@ -60,16 +55,16 @@ curl -X POST http://localhost:3000/shorten \
   }'
 ```
 
-### 2. Minhas URLs (Requer Autenticação)
+### 2. My URLs (Requires Authentication)
 **GET** `/my-urls`
 
-Lista todas as URLs criadas pelo usuário autenticado.
+Lists all URLs created by the authenticated user.
 
-**Características:**
-- 🔒 **REQUER AUTENTICAÇÃO** (JWT Token obrigatório)
-- 👤 Retorna apenas URLs do usuário logado
+**Features:**
+- 🔒 **REQUIRES AUTHENTICATION** (JWT Token mandatory)
+- 👤 Returns only URLs from the logged user
 
-**Headers Obrigatórios:**
+**Required Headers:**
 ```
 Authorization: Bearer <jwt-token>
 ```
@@ -78,47 +73,47 @@ Authorization: Bearer <jwt-token>
 ```json
 [
   {
-    "id": "uuid-da-url-1",
-    "originalUrl": "https://www.meusite.com/pagina1",
+    "id": "url-uuid-1",
+    "originalUrl": "https://www.mysite.com/page1",
     "shortCode": "usr123",
     "shortUrl": "http://localhost:3000/usr123",
-    "userId": "uuid-do-usuario-logado",
+    "userId": "logged-user-uuid",
     "createdAt": "2025-08-04T09:15:00Z",
     "clickCount": 42
   },
   {
-    "id": "uuid-da-url-2",
-    "originalUrl": "https://www.meusite.com/pagina2",
+    "id": "url-uuid-2",
+    "originalUrl": "https://www.mysite.com/page2",
     "shortCode": "usr456",
     "shortUrl": "http://localhost:3000/usr456",
-    "userId": "uuid-do-usuario-logado",
+    "userId": "logged-user-uuid",
     "createdAt": "2025-08-04T10:20:00Z",
     "clickCount": 8
   }
 ]
 ```
 
-**Exemplo de uso:**
+**Usage Example:**
 ```bash
 curl -X GET http://localhost:3000/my-urls \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-### 3. Editar URL (Requer Autenticação)
+### 3. Edit URL (Requires Authentication)
 **PUT** `/urls/:shortCode`
 
-Permite editar uma URL existente, atualizando a URL original e/ou o código encurtado. **Só permite editar URLs que pertencem ao usuário autenticado.**
+Allows editing an existing URL, updating the original URL and/or the short code. **Only allows editing URLs that belong to the authenticated user.**
 
-**Características:**
-- 🔒 **REQUER AUTENTICAÇÃO** (JWT Token obrigatório)
-- 👤 Só permite editar URLs do próprio usuário
-- 🔄 Permite alterar URL original e código encurtado
-- ⚠️ Validação de duplicatas de código
+**Features:**
+- 🔒 **REQUIRES AUTHENTICATION** (JWT Token mandatory)
+- 👤 Only allows editing URLs owned by the user
+- 🔄 Allows changing original URL and short code
+- ⚠️ Duplicate code validation
 
-**Parâmetros de URL:**
-- `shortCode` (string): Código atual da URL a ser editada
+**URL Parameters:**
+- `shortCode` (string): Current code of the URL to be edited
 
-**Headers Obrigatórios:**
+**Required Headers:**
 ```
 Authorization: Bearer <jwt-token>
 ```
@@ -126,25 +121,25 @@ Authorization: Bearer <jwt-token>
 **Request Body:**
 ```json
 {
-  "originalUrl": "https://www.novo-exemplo.com",
-  "shortCode": "novo123"
+  "originalUrl": "https://www.new-example.com",
+  "shortCode": "new123"
 }
 ```
 
-**Observações sobre o body:**
-- Ambos os campos são opcionais
-- Se `shortCode` for fornecido, deve ser único no sistema
-- Se `originalUrl` for fornecida, deve ser uma URL válida
+**Body Notes:**
+- Both fields are optional
+- If `shortCode` is provided, it must be unique in the system
+- If `originalUrl` is provided, it must be a valid URL
 
 **Response (200 OK):**
 ```json
 {
-  "id": "uuid-da-url",
-  "originalUrl": "https://www.novo-exemplo.com",
-  "shortCode": "novo123",
-  "shortUrl": "http://localhost:3000/novo123",
-  "userId": "uuid-do-usuario",
-  "userName": "Nome do Usuário",
+  "id": "url-uuid",
+  "originalUrl": "https://www.new-example.com",
+  "shortCode": "new123",
+  "shortUrl": "http://localhost:3000/new123",
+  "userId": "user-uuid",
+  "userName": "User Name",
   "createdAt": "2025-08-04T10:30:00Z",
   "updatedAt": undefined,
   "deletedAt": null,
@@ -152,109 +147,109 @@ Authorization: Bearer <jwt-token>
 }
 ```
 
-**Possíveis Erros:**
-- **401 Unauthorized**: Token JWT inválido ou ausente
-- **404 Not Found**: Código da URL não encontrado ou não pertence ao usuário
-- **409 Conflict**: Novo código já existe ou URL inválida
-- **400 Bad Request**: Dados de entrada inválidos
+**Possible Errors:**
+- **401 Unauthorized**: Invalid or missing JWT token
+- **404 Not Found**: URL code not found or doesn't belong to user
+- **409 Conflict**: New code already exists or invalid URL
+- **400 Bad Request**: Invalid input data
 
-**Exemplos de uso:**
+**Usage Examples:**
 
-**Alterar apenas a URL original:**
+**Change only the original URL:**
 ```bash
 curl -X PUT http://localhost:3000/urls/abc123 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -d '{
-    "originalUrl": "https://www.nova-url.com"
+    "originalUrl": "https://www.new-url.com"
   }'
 ```
 
-**Alterar apenas o código:**
+**Change only the code:**
 ```bash
 curl -X PUT http://localhost:3000/urls/abc123 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -d '{
-    "shortCode": "novo-codigo"
+    "shortCode": "new-code"
   }'
 ```
 
-**Alterar ambos:**
+**Change both:**
 ```bash
 curl -X PUT http://localhost:3000/urls/abc123 \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -d '{
-    "originalUrl": "https://www.site-atualizado.com",
-    "shortCode": "site-novo"
+    "originalUrl": "https://www.updated-site.com",
+    "shortCode": "new-site"
   }'
 ```
 
-### 4. Deletar URL (Requer Autenticação)
+### 4. Delete URL (Requires Authentication)
 **DELETE** `/urls/:shortCode`
 
-Remove permanentemente uma URL encurtada do sistema. **Só permite deletar URLs que pertencem ao usuário autenticado.**
+Permanently removes a shortened URL from the system. **Only allows deleting URLs that belong to the authenticated user.**
 
-**Características:**
-- 🔒 **REQUER AUTENTICAÇÃO** (JWT Token obrigatório)
-- 👤 Só permite deletar URLs do próprio usuário
-- 🗑️ Exclusão permanente (não há soft delete)
-- ⚠️ Ação irreversível
+**Features:**
+- 🔒 **REQUIRES AUTHENTICATION** (JWT Token mandatory)
+- 👤 Only allows deleting URLs owned by the user
+- 🗑️ Permanent deletion (no soft delete)
+- ⚠️ Irreversible action
 
-**Parâmetros de URL:**
-- `shortCode` (string): Código da URL a ser deletada
+**URL Parameters:**
+- `shortCode` (string): Code of the URL to be deleted
 
-**Headers Obrigatórios:**
+**Required Headers:**
 ```
 Authorization: Bearer <jwt-token>
 ```
 
 **Response (204 No Content):**
-- Sem conteúdo no corpo da resposta
-- Status 204 indica sucesso na exclusão
+- No content in response body
+- Status 204 indicates successful deletion
 
-**Possíveis Erros:**
-- **401 Unauthorized**: Token JWT inválido ou ausente
-- **404 Not Found**: Código da URL não encontrado ou não pertence ao usuário
+**Possible Errors:**
+- **401 Unauthorized**: Invalid or missing JWT token
+- **404 Not Found**: URL code not found or doesn't belong to user
 
-**Exemplos de uso:**
+**Usage Examples:**
 
-**Deletar uma URL:**
+**Delete a URL:**
 ```bash
 curl -X DELETE http://localhost:3000/urls/abc123 \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-**Verificar se a URL foi deletada (deve retornar 404):**
+**Verify if URL was deleted (should return 404):**
 ```bash
 curl -v http://localhost:3000/abc123
 ```
 
-### 5. Redirecionamento (Público)
+### 5. Redirection (Public)
 **GET** `/:shortCode`
 
-Redireciona o usuário para a URL original baseada no código encurtado fornecido.
+Redirects the user to the original URL based on the provided short code.
 
-**Características:**
-- ✅ Público (acesso direto via browser ou qualquer cliente HTTP)
-- 🔄 Redirecionamento HTTP 302 (temporário)
-- 📈 Incrementa contador de cliques automaticamente
+**Features:**
+- ✅ Public (direct access via browser or any HTTP client)
+- 🔄 HTTP 302 (temporary) redirection
+- 📈 Automatically increments click counter
 
-**Parâmetros:**
-- `shortCode` (string): Código único da URL encurtada
+**Parameters:**
+- `shortCode` (string): Unique code of the shortened URL
 
 **Response:**
-- **302 Found**: Redirecionamento para a URL original
-- **404 Not Found**: Código não encontrado
+- **302 Found**: Redirect to original URL
+- **404 Not Found**: Code not found
 
-**Exemplo de URL de sucesso:**
+**Successful URL example:**
 ```
 GET http://localhost:3000/abc123
-→ Redireciona para: https://www.google.com
+→ Redirects to: https://www.google.com
 ```
 
-**Response de erro (404 Not Found):**
+**Error response (404 Not Found):**
 ```json
 {
   "statusCode": 404,
@@ -263,41 +258,41 @@ GET http://localhost:3000/abc123
 }
 ```
 
-**Exemplos de uso:**
+**Usage Examples:**
 
 **Via browser:**
 ```
 http://localhost:3000/abc123
 ```
 
-**Via curl (mostrando redirecionamento):**
+**Via curl (showing redirection):**
 ```bash
 curl -v http://localhost:3000/abc123
 ```
 
-**Via curl (seguindo redirecionamento):**
+**Via curl (following redirection):**
 ```bash
 curl -L http://localhost:3000/abc123
 ```
 
-## Fluxo de Autenticação
+## Authentication Flow
 
-### Autenticação Opcional vs Obrigatória
+### Optional vs Required Authentication
 
-| Endpoint | Autenticação | Comportamento |
+| Endpoint | Authentication | Behavior |
 |----------|-------------|---------------|
-| `POST /shorten` | **Opcional** | Sem token: URL anônima<br>Com token: URL associada ao usuário |
-| `GET /my-urls` | **Obrigatória** | Apenas URLs do usuário autenticado |
-| `PUT /urls/:shortCode` | **Obrigatória** | Edita URL do próprio usuário |
-| `DELETE /urls/:shortCode` | **Obrigatória** | Remove URL do próprio usuário |
-| `GET /:shortCode` | **Não requerida** | Redirecionamento público |
+| `POST /shorten` | **Optional** | Without token: Anonymous URL<br>With token: URL associated with user |
+| `GET /my-urls` | **Required** | Only URLs from authenticated user |
+| `PUT /urls/:shortCode` | **Required** | Edit user's own URL |
+| `DELETE /urls/:shortCode` | **Required** | Remove user's own URL |
+| `GET /:shortCode` | **Not required** | Public redirection |
 
-### Como usar o Token JWT
+### How to use JWT Token
 
-Para endpoints que suportam ou requerem autenticação, inclua o header:
+For endpoints that support or require authentication, include the header:
 
 ```
-Authorization: Bearer <seu-jwt-token>
+Authorization: Bearer <your-jwt-token>
 ```
 
 **Exemplo:**
@@ -306,153 +301,153 @@ curl -X GET http://localhost:3000/my-urls \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 ```
 
-## Códigos de Status HTTP
+## HTTP Status Codes
 
-| Código | Significado | Quando Ocorre |
+| Code | Meaning | When It Occurs |
 |--------|-------------|---------------|
-| **200 OK** | Sucesso | Listagem de URLs, edição de URL |
-| **201 Created** | Criado com sucesso | URL encurtada criada |
-| **204 No Content** | Sucesso sem conteúdo | URL deletada com sucesso |
-| **302 Found** | Redirecionamento | Código válido encontrado |
-| **400 Bad Request** | Dados inválidos | URL inválida ou dados malformados |
-| **401 Unauthorized** | Não autorizado | Token JWT inválido ou ausente (para `/my-urls`) |
-| **404 Not Found** | Não encontrado | Código de URL não existe |
-| **500 Internal Server Error** | Erro interno | Erro no servidor |
+| **200 OK** | Success | URL listing, URL editing |
+| **201 Created** | Successfully created | Shortened URL created |
+| **204 No Content** | Success without content | URL successfully deleted |
+| **302 Found** | Redirection | Valid code found |
+| **400 Bad Request** | Invalid data | Invalid URL or malformed data |
+| **401 Unauthorized** | Unauthorized | Invalid or missing JWT token (for `/my-urls`) |
+| **404 Not Found** | Not found | URL code doesn't exist |
+| **500 Internal Server Error** | Internal error | Server error |
 
-## Logging e Monitoramento
+## Logging and Monitoring
 
-O controller implementa logging detalhado para todas as operações:
+The controller implements detailed logging for all operations:
 
-### Logs de Encurtamento
+### Shortening Logs
 ```
 Processing request to shorten URL: https://www.google.com for user: uuid-123
 Successfully shortened URL with code: abc123
 ```
 
-### Logs de Listagem
+### Listing Logs
 ```
 Processing request to get URLs for authenticated user: uuid-123
 Retrieved 5 URLs for user: uuid-123
 ```
 
-### Logs de Edição
+### Editing Logs
 ```
 Processing request to update URL with short code: abc123
 Successfully updated URL with short code: abc123
 ```
 
-### Logs de Exclusão
+### Deletion Logs
 ```
 Processing request to delete URL with short code: abc123
 Successfully deleted URL with short code: abc123
 ```
 
-### Logs de Redirecionamento
+### Redirection Logs
 ```
 Processing redirect request for short code: abc123
 Redirecting abc123 to https://www.google.com
 ```
 
-### Logs de Erro
+### Error Logs
 ```
 Error redirecting short code xyz999: Short code not found
 ```
 
-## Estrutura de DTOs
+## DTO Structure
 
 ### CreateUrlDto
-Usado para criar URLs encurtadas:
+Used to create shortened URLs:
 ```typescript
 {
-  originalUrl: string; // URL original a ser encurtada
+  originalUrl: string; // Original URL to be shortened
 }
 ```
 
 ### UpdateUrlDto
-Usado para editar URLs existentes:
+Used to edit existing URLs:
 ```typescript
 {
-  originalUrl?: string; // Nova URL original (opcional)
-  shortCode?: string;   // Novo código encurtado (opcional)
+  originalUrl?: string; // New original URL (optional)
+  shortCode?: string;   // New short code (optional)
 }
 ```
 
 ### UrlResponseDto
-Resposta padrão com dados da URL:
+Standard response with URL data:
 ```typescript
 {
-  id: string;           // ID único da URL
-  originalUrl: string;  // URL original
-  shortCode: string;    // Código encurtado
-  shortUrl: string;     // URL completa encurtada
-  userId?: string;      // ID do usuário (se autenticado)
-  userName?: string;    // Nome do usuário (se autenticado)
-  createdAt: Date;      // Data de criação
-  updatedAt?: Date;     // Data de atualização (undefined se nunca editada)
-  deletedAt: Date | null; // Data de exclusão (sempre null - sem soft delete)
-  accessCount: number;  // Número de acessos
+  id: string;           // Unique URL ID
+  originalUrl: string;  // Original URL
+  shortCode: string;    // Short code
+  shortUrl: string;     // Complete shortened URL
+  userId?: string;      // User ID (if authenticated)
+  userName?: string;    // User name (if authenticated)
+  createdAt: Date;      // Creation date
+  updatedAt?: Date;     // Update date (undefined if never edited)
+  deletedAt: Date | null; // Deletion date (always null - no soft delete)
+  accessCount: number;  // Number of accesses
 }
 ```
 
-## Casos de Uso Comuns
+## Common Use Cases
 
-### 1. Usuário Anônimo Encurta URL
+### 1. Anonymous User Shortens URL
 ```bash
-# 1. Encurtar URL
+# 1. Shorten URL
 curl -X POST http://localhost:3000/shorten \
   -H "Content-Type: application/json" \
-  -d '{"originalUrl": "https://www.exemplo.com"}'
+  -d '{"originalUrl": "https://www.example.com"}'
 
-# 2. Usar URL encurtada
+# 2. Use shortened URL
 curl -L http://localhost:3000/abc123
 ```
 
-### 2. Usuário Autenticado Gerencia URLs
+### 2. Authenticated User Manages URLs
 ```bash
-# 1. Fazer login (no user controller)
+# 1. Login (in user controller)
 TOKEN=$(curl -X POST http://localhost:3000/users/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "senha"}' \
+  -d '{"email": "user@example.com", "password": "password"}' \
   | jq -r '.accessToken')
 
-# 2. Encurtar URL autenticado
+# 2. Shorten URL authenticated
 curl -X POST http://localhost:3000/shorten \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"originalUrl": "https://www.exemplo.com"}'
+  -d '{"originalUrl": "https://www.example.com"}'
 
-# 3. Ver suas URLs
+# 3. View your URLs
 curl -X GET http://localhost:3000/my-urls \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 3. Usuário Autenticado Gerencia URLs
+### 3. Authenticated User Edits URLs
 ```bash
-# Editar URL e código
+# Edit URL and code
 curl -X PUT http://localhost:3000/urls/abc123 \
   -H "Content-Type: application/json" \
   -d '{
-    "originalUrl": "https://www.nova-url.com",
-    "shortCode": "novo-codigo"
+    "originalUrl": "https://www.new-url.com",
+    "shortCode": "new-code"
   }'
 
-# Verificar se a edição funcionou
-curl -L http://localhost:3000/novo-codigo
+# Verify if the edit worked
+curl -L http://localhost:3000/new-code
 ```
 
-### 5. Deletar URL
+### 4. Delete URL
 ```bash
-# Deletar uma URL específica
+# Delete a specific URL
 curl -X DELETE http://localhost:3000/urls/abc123
 
-# Tentar acessar a URL deletada (deve retornar 404)
+# Try to access the deleted URL (should return 404)
 curl -v http://localhost:3000/abc123
 ```
 
-## Observações de Segurança
+## Security Notes
 
-- 🔒 URLs de usuários autenticados ficam associadas à conta
-- 🌐 URLs anônimas não têm proprietário definido
-- 🗑️ Operações de exclusão são permanentes e não podem ser desfeitas
-- 📊 Todos os acessos são contabilizados no `clickCount`
-- 🔍 Logs detalhados permitem auditoria de uso
+- 🔒 URLs from authenticated users are associated with their account
+- 🌐 Anonymous URLs have no defined owner
+- 🗑️ Delete operations are permanent and cannot be undone
+- 📊 All accesses are counted in `clickCount`
+- 🔍 Detailed logs allow usage auditing

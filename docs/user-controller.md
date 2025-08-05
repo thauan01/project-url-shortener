@@ -1,19 +1,19 @@
 # User Controller
 
-O `UserController` é responsável por gerenciar todas as operações relacionadas aos usuários no sistema de encurtamento de URLs. Este controller fornece endpoints para autenticação, criação, leitura, atualização e exclusão de usuários.
+The `UserController` is responsible for managing all user-related operations in the URL shortening system. This controller provides endpoints for authentication, creation, reading, updating, and deletion of users.
 
-## Endpoints Disponíveis
+## Available Endpoints
 
-### 1. Login de Usuário
+### 1. User Login
 **POST** `/users/login`
 
-Realiza a autenticação de um usuário e retorna um token JWT para acesso aos recursos protegidos.
+Performs user authentication and returns a JWT token for accessing protected resources.
 
 **Request Body:**
 ```json
 {
-  "email": "usuario@exemplo.com",
-  "password": "senha123"
+  "email": "user@example.com",
+  "password": "password123"
 }
 ```
 
@@ -22,147 +22,147 @@ Realiza a autenticação de um usuário e retorna um token JWT para acesso aos r
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
-    "id": "uuid-do-usuario",
-    "email": "usuario@exemplo.com",
-    "name": "Nome do Usuário"
+    "id": "user-uuid",
+    "email": "user@example.com",
+    "name": "User Name"
   }
 }
 ```
 
-**Exemplo de uso:**
+**Usage example:**
 ```bash
 curl -X POST http://localhost:3000/users/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "usuario@exemplo.com",
-    "password": "senha123"
+    "email": "user@example.com",
+    "password": "password123"
   }'
 ```
 
-### 2. Listar Todos os Usuários
+### 2. List All Users
 **GET** `/users`
 
-Retorna uma lista com todos os usuários cadastrados no sistema.
+Returns a list of all users registered in the system.
 
 **Response (200 OK):**
 ```json
 [
   {
-    "id": "uuid-do-usuario-1",
-    "email": "usuario1@exemplo.com",
-    "name": "Usuário 1"
+    "id": "user-uuid-1",
+    "email": "user1@example.com",
+    "name": "User 1"
   },
   {
-    "id": "uuid-do-usuario-2",
-    "email": "usuario2@exemplo.com",
-    "name": "Usuário 2"
+    "id": "user-uuid-2",
+    "email": "user2@example.com",
+    "name": "User 2"
   }
 ]
 ```
 
-**Exemplo de uso:**
+**Usage example:**
 ```bash
 curl -X GET http://localhost:3000/users
 ```
 
-### 3. Buscar Usuário por ID
+### 3. Find User by ID
 **GET** `/users/:id`
 
-Retorna os dados de um usuário específico pelo seu ID.
+Returns data for a specific user by their ID.
 
-**Parâmetros:**
-- `id` (string): ID único do usuário
+**Parameters:**
+- `id` (string): Unique user ID
 
 **Response (200 OK):**
 ```json
 {
-  "id": "uuid-do-usuario",
-  "email": "usuario@exemplo.com",
-  "name": "Nome do Usuário"
+  "id": "user-uuid",
+  "email": "user@example.com",
+  "name": "User Name"
 }
 ```
 
-**Exemplo de uso:**
+**Usage example:**
 ```bash
 curl -X GET http://localhost:3000/users/123e4567-e89b-12d3-a456-426614174000
 ```
 
-### 4. Criar Novo Usuário
+### 4. Create New User
 **POST** `/users`
 
-Cria um novo usuário no sistema.
+Creates a new user in the system.
 
 **Request Body:**
 ```json
 {
-  "email": "novousuario@exemplo.com",
-  "name": "Nome do Novo Usuário",
-  "password": "senha123"
+  "email": "newuser@example.com",
+  "name": "New User Name",
+  "password": "password123"
 }
 ```
 
 **Response (201 Created):**
 ```json
 {
-  "id": "uuid-do-novo-usuario",
-  "email": "novousuario@exemplo.com",
-  "name": "Nome do Novo Usuário"
+  "id": "new-user-uuid",
+  "email": "newuser@example.com",
+  "name": "New User Name"
 }
 ```
 
-**Exemplo de uso:**
+**Usage example:**
 ```bash
 curl -X POST http://localhost:3000/users \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "novousuario@exemplo.com",
-    "name": "Nome do Novo Usuário",
-    "password": "senha123"
+    "email": "newuser@example.com",
+    "name": "New User Name",
+    "password": "password123"
   }'
 ```
 
-### 5. Atualizar Usuário
+### 5. Update User
 **PUT** `/users/:id`
 
-Atualiza os dados de um usuário existente.
+Updates data for an existing user.
 
-**Parâmetros:**
-- `id` (string): ID único do usuário
+**Parameters:**
+- `id` (string): Unique user ID
 
 **Request Body:**
 ```json
 {
-  "email": "emailatualizado@exemplo.com",
-  "name": "Nome Atualizado"
+  "email": "updatedemail@example.com",
+  "name": "Updated Name"
 }
 ```
 
 **Response (200 OK):**
 ```json
 {
-  "id": "uuid-do-usuario",
-  "email": "emailatualizado@exemplo.com",
-  "name": "Nome Atualizado"
+  "id": "user-uuid",
+  "email": "updatedemail@example.com",
+  "name": "Updated Name"
 }
 ```
 
-**Exemplo de uso:**
+**Usage example:**
 ```bash
 curl -X PUT http://localhost:3000/users/123e4567-e89b-12d3-a456-426614174000 \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "emailatualizado@exemplo.com",
-    "name": "Nome Atualizado"
+    "email": "updatedemail@example.com",
+    "name": "Updated Name"
   }'
 ```
 
-### 6. Excluir Usuário
+### 6. Delete User
 **DELETE** `/users/:id`
 
-Remove um usuário do sistema.
+Removes a user from the system.
 
-**Parâmetros:**
-- `id` (string): ID único do usuário
+**Parameters:**
+- `id` (string): Unique user ID
 
 **Response (204 No Content):**
 Sem conteúdo no corpo da resposta.

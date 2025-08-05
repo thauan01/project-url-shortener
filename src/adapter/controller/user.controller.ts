@@ -44,7 +44,7 @@ export class UserController {
     const payload = { sub: user.id, email: user.email };
     const accessToken = await this.jwtService.signAsync(payload);
     
-    this.logger.log(`Successfully generated token for user: ${user.id}`);
+    this.logger.log(`Successfully generated token for user: ${user.id}`, user);
     
     return {
       accessToken,
@@ -63,7 +63,7 @@ export class UserController {
   async findAll(): Promise<UserResponseDto[]> {
     this.logger.log('Processing request to get all users');
     const result = await this.userService.findAll();
-    this.logger.log(`Retrieved ${result.length} users`);
+    this.logger.log(`Retrieved ${result.length} users`, result);
     return result;
   }
 
@@ -80,7 +80,7 @@ export class UserController {
   async findOne(@Param('id') id: string): Promise<UserResponseDto> {
     this.logger.log(`Processing request to get user with ID: ${id}`);
     const result = await this.userService.findById(id);
-    this.logger.log(`Successfully retrieved user with ID: ${id}`);
+    this.logger.log(`Successfully retrieved user with ID: ${id}`, result);
     return result;
   }
 
@@ -99,7 +99,7 @@ export class UserController {
   async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
     this.logger.log(`Processing request to create user with email: ${createUserDto.email}`);
     const result = await this.userService.create(createUserDto);
-    this.logger.log(`Successfully created user with ID: ${result.id}`);
+    this.logger.log(`Successfully created user with ID: ${result.id}`, result);
     return result;
   }
 
@@ -118,7 +118,7 @@ export class UserController {
   async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto): Promise<UserResponseDto> {
     this.logger.log(`Processing request to update user with ID: ${id}`);
     const result = await this.userService.update(id, updateUserDto);
-    this.logger.log(`Successfully updated user with ID: ${id}`);
+    this.logger.log(`Successfully updated user with ID: ${id}`, result);
     return result;
   }
 
