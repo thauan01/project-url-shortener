@@ -50,7 +50,6 @@ export class UserService {
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     this.logger.log(`Starting to create user with email: ${createUserDto.email}`);
     
-    // Check if email already exists
     const existingUser = await this.userRepository.findByEmail(createUserDto.email);
     if (existingUser) {
       this.logger.error(`User with email ${createUserDto.email} already exists`);
@@ -60,7 +59,7 @@ export class UserService {
     const userData = {
       name: createUserDto.name,
       email: createUserDto.email,
-      password: createUserDto.password, // Consider hashing the password
+      password: createUserDto.password,
     };
     
     const newUser = await this.userRepository.create(userData);
@@ -72,14 +71,12 @@ export class UserService {
   async update(id: string, updateUserDto: UpdateUserDto): Promise<UserResponseDto> {
     this.logger.log(`Starting to update user with ID: ${id}`);
     
-    // Check if user exists
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
       this.logger.error(`User with ID ${id} not found for update`);
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Check if email already exists for another user
     if (updateUserDto.email && updateUserDto.email !== existingUser.email) {
       const userWithEmail = await this.userRepository.findByEmail(updateUserDto.email);
       if (userWithEmail && userWithEmail.id !== id) {

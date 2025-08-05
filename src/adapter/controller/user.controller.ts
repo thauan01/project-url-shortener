@@ -28,8 +28,6 @@ export class UserController {
   async login(@Body() loginUserDto: LoginUserDto): Promise<LoginResponseDto> {
     this.logger.log(`Processing login request for email: ${loginUserDto.email}`);
     
-    // Em um projeto real, você validaria a senha com hash
-    // Por simplicidade, vamos assumir que o usuário existe
     const user = await this.userService.findByEmail(loginUserDto.email);
     
     const payload = { sub: user.id, email: user.email };

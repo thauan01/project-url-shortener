@@ -1,7 +1,6 @@
 import 'reflect-metadata';
-
-const chai = require('chai');
-const sinonChai = require('sinon-chai');
+import chai from 'chai';
+import sinonChai from 'sinon-chai';
 
 // Configure chai to use sinon-chai plugin
 chai.use(sinonChai);

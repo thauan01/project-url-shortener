@@ -63,6 +63,7 @@ JWT_EXPIRATION=3600s
 # Application Configuration
 PORT=3000
 NODE_ENV=production
+BASE_URL=http://localhost:3000
 ```
 
 ### Production Build

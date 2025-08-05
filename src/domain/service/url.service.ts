@@ -5,12 +5,13 @@ import { CreateUrlDto, UrlResponseDto, UpdateUrlDto } from '../dto/url.dto';
 import { UserService } from './user.service';
 import { DI_URL_REPOSITORY } from '../../configs/container-names';
 import { IUrlRepository } from '../interfaces/url-repository.interface';
+import { environmentConfig } from '../../configs/environment.config';
 
 @Injectable()
 export class UrlService implements OnModuleInit {
   private readonly logger = new Logger(UrlService.name);
   private urls: Url[] = [];
-  private readonly baseUrl = 'http://localhost:3000'; // Configure conforme necessário
+  private readonly baseUrl = environmentConfig.baseUrl;
 
   constructor(
     @Inject(forwardRef(() => UserService))
@@ -19,9 +20,6 @@ export class UrlService implements OnModuleInit {
     private readonly urlRepository: IUrlRepository,
   ) {}
 
-  /**
-   * Inicializa o service carregando todas as URLs do banco de dados
-   */
   async onModuleInit() {
     this.logger.log('Initializing UrlService - loading URLs from database');
     try {
@@ -35,22 +33,17 @@ export class UrlService implements OnModuleInit {
     }
   }
 
-  /**
-   * Encurta uma URL gerando um código único de 6 caracteres
-   * Se userId for fornecido, associa a URL ao usuário
-   */
   async shortenUrl(createUrlDto: CreateUrlDto, userId?: string | null): Promise<UrlResponseDto> {
     this.logger.log(`Starting to shorten URL: ${createUrlDto.originalUrl}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
     
     if (!this.isValidRequisition(createUrlDto, userId)) throw new ConflictException('Invalid Requisition');
 
-    // Gerar código único de 6 caracteres usando nanoid
     let shortCode: string;
     let attempts = 0;
     const maxAttempts = 10;
 
     do {
-      shortCode = nanoid(6); // Gera exatamente 6 caracteres
+      shortCode = nanoid(6);
       attempts++;
       
       if (attempts > maxAttempts) {
@@ -58,23 +51,19 @@ export class UrlService implements OnModuleInit {
       }
     } while (this.urls.some(u => u.shortCode === shortCode));
 
-    // Criar nova URL encurtada - só incluir userId se não for null/undefined
     const urlData: any = {
       originalUrl: createUrlDto.originalUrl,
       shortCode,
       accessCount: 0,
     };
 
-    // Só adicionar userId se ele existir e não for uma string vazia
     if (userId && userId.trim() !== '') {
       urlData.userId = userId;
     }
 
     try {
-      // Salvar no banco de dados
       const savedUrl = await this.urlRepository.create(urlData);
       
-      // Adicionar à lista em memória
       this.urls.push(savedUrl);
       
       this.logger.log(`Successfully shortened URL with code: ${shortCode}${userId ? ` for user: ${userId}` : ' (anonymous)'}`);
@@ -85,9 +74,6 @@ export class UrlService implements OnModuleInit {
     }
   }
 
-  /**
-   * Redireciona para a URL original usando o código curto
-   */
   async getOriginalUrl(shortCode: string): Promise<string> {
     this.logger.log(`Looking for URL with short code: ${shortCode}`);
     
@@ -99,13 +85,10 @@ export class UrlService implements OnModuleInit {
     }
 
     try {
-      // Incrementar contador de acesso no banco de dados
       await this.urlRepository.incrementAccessCountAndUpdate(url.id);
       
-      // Buscar o registro atualizado do banco para sincronizar com a memória
       const updatedUrl = await this.urlRepository.findById(url.id);
       if (updatedUrl) {
-        // Atualizar o registro na memória com os dados atualizados do banco
         this.updateUrlInMemoryById(updatedUrl);
       }
       
@@ -113,18 +96,13 @@ export class UrlService implements OnModuleInit {
       return url.originalUrl;
     } catch (error) {
       this.logger.error('Failed to increment access count', error);
-      // Mesmo se falhar o incremento, retorna a URL original
       return url.originalUrl;
     }
   }
 
-  /**
-   * Lista URLs do usuário específico
-   */
   async getUserUrls(userId: string): Promise<UrlResponseDto[]> {
     this.logger.log(`Retrieving URLs for user: ${userId}`);
     
-    // Verificar se o usuário existe
     try {
       await this.userService.findById(userId);
     } catch (error) {
@@ -135,30 +113,22 @@ export class UrlService implements OnModuleInit {
     return Promise.all(userUrls.map(url => this.toResponseDto(url)));
   }
 
-  /**
-   * Atualiza uma URL existente
-   * Só permite atualizar URLs que pertencem ao usuário autenticado
-   */
   async updateUrl(shortCode: string, updateUrlDto: UpdateUrlDto, userId: string): Promise<UrlResponseDto> {
     this.logger.log(`Updating URL with short code: ${shortCode} for user: ${userId}`);
     
-    // Verificar se a URL existe
     const existingUrl = this.urls.find(u => u.shortCode === shortCode);
     if (!existingUrl) {
       throw new NotFoundException(`URL with short code ${shortCode} not found`);
     }
 
-    // Verificar se a URL pertence ao usuário autenticado
     if (!existingUrl.userId || existingUrl.userId !== userId) {
       throw new NotFoundException(`URL with short code ${shortCode} not found for this user`);
     }
 
-    // Validar nova URL se fornecida
     if (updateUrlDto.originalUrl && !this.isValidUrl(updateUrlDto.originalUrl)) {
       throw new ConflictException('Invalid URL format');
     }
 
-    // Se está mudando o shortCode, verificar se o novo não existe
     if (updateUrlDto.shortCode && updateUrlDto.shortCode !== shortCode) {
       const existingShortCode = this.urls.find(u => u.shortCode === updateUrlDto.shortCode);
       if (existingShortCode) {
@@ -167,7 +137,6 @@ export class UrlService implements OnModuleInit {
     }
 
     try {
-      // Preparar dados para atualização
       const updateData: Partial<Url> = {};
       if (updateUrlDto.originalUrl) {
         updateData.originalUrl = updateUrlDto.originalUrl;
@@ -176,14 +145,12 @@ export class UrlService implements OnModuleInit {
         updateData.shortCode = updateUrlDto.shortCode;
       }
 
-      // Atualizar no banco de dados
       const updatedUrl = await this.urlRepository.updateByShortCode(shortCode, updateData);
       
       if (!updatedUrl) {
         throw new NotFoundException(`Failed to update URL with short code ${shortCode}`);
       }
 
-      // Atualizar na memória
       this.updateUrlInMemoryByShortCode(shortCode, updatedUrl);
 
       this.logger.log(`Successfully updated URL with short code: ${shortCode}`);
@@ -198,29 +165,21 @@ export class UrlService implements OnModuleInit {
     }
   }
 
-  /**
-   * Deleta uma URL existente
-   * Só permite deletar URLs que pertencem ao usuário autenticado
-   */
   async deleteUrl(shortCode: string, userId: string): Promise<void> {
     this.logger.log(`Deleting URL with short code: ${shortCode} for user: ${userId}`);
     
-    // Verificar se a URL existe
     const existingUrl = this.urls.find(u => u.shortCode === shortCode);
     if (!existingUrl) {
       throw new NotFoundException(`URL with short code ${shortCode} not found`);
     }
 
-    // Verificar se a URL pertence ao usuário autenticado
     if (!existingUrl.userId || existingUrl.userId !== userId) {
       throw new NotFoundException(`URL with short code ${shortCode} not found for this user`);
     }
 
     try {
-      // Deletar do banco de dados
       await this.urlRepository.deleteByShortCode(shortCode);
       
-      // Remover da lista em memória
       this.removeUrlFromMemoryByShortCode(shortCode);
 
       this.logger.log(`Successfully deleted URL with short code: ${shortCode}`);
@@ -230,9 +189,6 @@ export class UrlService implements OnModuleInit {
     }
   }
 
-  /**
-   * Gera um novo código curto (útil para regenerar)
-   */
   generateShortCode(length: number = 6): string {
     return nanoid(length);
   }
@@ -241,7 +197,6 @@ export class UrlService implements OnModuleInit {
     if (!this.isValidUrl(createUrlDto.originalUrl)) {
       throw new ConflictException('Invalid URL format');
     }
-    // Se userId for fornecido e não for vazio, verificar se o usuário existe
     if (userId && userId.trim() !== '') {
       try {
         this.userService.findById(userId);
@@ -269,9 +224,6 @@ export class UrlService implements OnModuleInit {
     }
   }
 
-  /**
-   * Atualiza um registro na lista em memória baseado no ID
-   */
   private updateUrlInMemoryById(updatedUrl: Url): void {
     const index = this.urls.findIndex(u => u.id === updatedUrl.id);
     if (index !== -1) {
@@ -279,9 +231,6 @@ export class UrlService implements OnModuleInit {
     }
   }
 
-  /**
-   * Atualiza um registro na lista em memória baseado no shortCode
-   */
   private updateUrlInMemoryByShortCode(shortCode: string, updatedUrl: Url): void {
     const index = this.urls.findIndex(u => u.shortCode === shortCode);
     if (index !== -1) {
@@ -289,9 +238,6 @@ export class UrlService implements OnModuleInit {
     }
   }
 
-  /**
-   * Remove um registro da lista em memória baseado no shortCode
-   */
   private removeUrlFromMemoryByShortCode(shortCode: string): void {
     const index = this.urls.findIndex(u => u.shortCode === shortCode);
     if (index !== -1) {
@@ -306,8 +252,8 @@ export class UrlService implements OnModuleInit {
       shortCode: url.shortCode,
       shortUrl: `${this.baseUrl}/${url.shortCode}`,
       createdAt: url.createdAt,
-      updatedAt: dateUpdate ? dateUpdate : undefined, // A entidade não tem updatedAt, então deixamos undefined
-      deletedAt: null, // A entidade não tem soft delete, então sempre null
+      updatedAt: dateUpdate ? dateUpdate : undefined,
+      deletedAt: null,
       accessCount: url.accessCount,
     };
 
