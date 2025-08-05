@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from './user.entity';
 
 @Entity('urls')
@@ -16,6 +16,12 @@ export class Url {
   @CreateDateColumn()
   createdAt: Date;
 
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @DeleteDateColumn()
+  deletedAt?: Date | null;
+
   @Column({ type: 'int', default: 0 })
   accessCount: number;
 
@@ -27,17 +33,19 @@ export class Url {
   user?: User;
 
   constructor(
-    id?: string,
     originalUrl?: string,
     shortCode?: string,
     createdAt?: Date,
+    updatedAt?: Date,
+    deletedAt?: Date,
     accessCount?: number,
     userId?: string,
   ) {
-    this.id = id;
     this.originalUrl = originalUrl;
     this.shortCode = shortCode;
     this.createdAt = createdAt || new Date();
+    this.updatedAt = updatedAt || new Date();
+    this.deletedAt = deletedAt;
     this.accessCount = accessCount || 0;
     this.userId = userId;
   }

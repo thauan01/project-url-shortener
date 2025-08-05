@@ -1,18 +1,20 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Logger,
   Param,
   Post,
+  Put,
   Query,
   Res,
   UseGuards
 } from '@nestjs/common';
 import { Response } from 'express';
-import { CreateUrlDto, UrlResponseDto } from '../../domain/dto/url.dto';
+import { CreateUrlDto, UrlResponseDto, UpdateUrlDto } from '../../domain/dto/url.dto';
 import { AuthenticatedUser } from '../../domain/interfaces/authenticated-user.interface';
 import { UrlService } from '../../domain/service/url.service';
 import { CurrentUser, OptionalUser } from '../decorator/user.decorator';
@@ -26,8 +28,8 @@ export class UrlController {
   constructor(private readonly urlService: UrlService) {}
 
   /**
-   * Encurta uma URL - PÚBLICO
-   * Qualquer um pode usar, mas se autenticado (JWT token), associa ao usuário
+   * Shorten a URL - PUBLIC
+   * Anyone can use it, but if authenticated (JWT token), associates it with the user
    * POST /shorten
    */
   @Post('shorten')
@@ -45,21 +47,7 @@ export class UrlController {
   }
 
   /**
-   * Lista URLs - pode filtrar por usuário via query param
-   * GET /urls?userId=123 (opcional)
-   */
-  @Get('urls')
-  async getAllUrls(@Query('userId') userId?: string): Promise<UrlResponseDto[]> {
-    // Converter string vazia ou undefined para null
-    const validUserId = userId && userId.trim() !== '' ? userId : null;
-    this.logger.log(`Processing request to get URLs${validUserId ? ` for user: ${validUserId}` : ' (all)'}`);
-    const result = await this.urlService.getAllUrls(validUserId);
-    this.logger.log(`Retrieved ${result.length} URLs`);
-    return result;
-  }
-
-  /**
-   * Lista as URLs do usuário autenticado - REQUER AUTENTICAÇÃO
+   * List authenticated user's URLs - REQUIRES AUTHENTICATION
    * GET /my-urls
    */
   @Get('my-urls')
@@ -72,8 +60,42 @@ export class UrlController {
   }
 
   /**
-   * Redireciona para a URL original
-   * GET /:shortCode
+   * Update a URL by short code - REQUIRES AUTHENTICATION
+   * PUT /urls/:shortCode
+   */
+  @Put('urls/:shortCode')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async updateUrl(
+    @Param('shortCode') shortCode: string,
+    @Body() updateUrlDto: UpdateUrlDto,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<UrlResponseDto> {
+    this.logger.log(`Processing request to update URL with short code: ${shortCode} for user: ${user.userId}`);
+    const result = await this.urlService.updateUrl(shortCode, updateUrlDto, user.userId);
+    this.logger.log(`Successfully updated URL with short code: ${shortCode} for user: ${user.userId}`);
+    return result;
+  }
+
+  /**
+   * Delete a URL by short code - REQUIRES AUTHENTICATION
+   * DELETE /urls/:shortCode
+   */
+  @Delete('urls/:shortCode')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async deleteUrl(
+    @Param('shortCode') shortCode: string,
+    @CurrentUser() user: AuthenticatedUser
+  ): Promise<void> {
+    this.logger.log(`Processing request to delete URL with short code: ${shortCode} for user: ${user.userId}`);
+    await this.urlService.deleteUrl(shortCode, user.userId);
+    this.logger.log(`Successfully deleted URL with short code: ${shortCode} for user: ${user.userId}`);
+  }
+
+  /**
+   * Redirect to original URL
+   * GET /aBcDeF
    */
   @Get(':shortCode')
   async redirectToOriginal(

@@ -13,32 +13,34 @@ export class UrlRepository implements IUrlRepository {
 
   async create(url: Partial<Url>): Promise<Url> {
     const newUrl = this.urlRepository.create(url);
+    console.log(newUrl);
     return await this.urlRepository.save(newUrl);
   }
 
   async findAll(): Promise<Url[]> {
     return await this.urlRepository.find({
+      where: { deletedAt: null },
       relations: ['user'],
     });
   }
 
   async findById(id: string): Promise<Url | null> {
     return await this.urlRepository.findOne({
-      where: { id },
+      where: { id, deletedAt: null },
       relations: ['user'],
     });
   }
 
   async findByShortCode(shortCode: string): Promise<Url | null> {
     return await this.urlRepository.findOne({
-      where: { shortCode },
+      where: { shortCode, deletedAt: null },
       relations: ['user'],
     });
   }
 
   async findByUserId(userId: string): Promise<Url[]> {
     return await this.urlRepository.find({
-      where: { userId },
+      where: { userId, deletedAt: null },
       relations: ['user'],
     });
   }
@@ -48,12 +50,24 @@ export class UrlRepository implements IUrlRepository {
     return await this.findById(id);
   }
 
-  async incrementAccessCount(id: string): Promise<void> {
-    await this.urlRepository.increment({ id }, 'accessCount', 1);
+  async updateByShortCode(shortCode: string, updateData: Partial<Url>): Promise<Url | null> {
+    await this.urlRepository.update({ shortCode }, updateData);
+    return await this.findByShortCode(shortCode);
   }
 
-  async delete(id: string): Promise<boolean> {
-    const result = await this.urlRepository.delete(id);
+  async incrementAccessCountAndUpdate(id: string): Promise<void> {
+    await this.urlRepository.increment({ id, deletedAt: null }, 'accessCount', 1);
+    await this.urlRepository.update({ id, deletedAt: null }, { updatedAt: new Date() });
+  }
+
+  async deleteByShortCode(shortCode: string): Promise<boolean> {
+    const result = await this.urlRepository.update(
+      { shortCode },
+      { 
+        deletedAt: new Date(),
+        updatedAt: new Date()
+      }
+    );
     return result.affected > 0;
   }
 }

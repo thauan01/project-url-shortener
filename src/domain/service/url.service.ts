@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, Logger, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { nanoid } from 'nanoid';
 import { Url } from '../entity/url.entity';
-import { CreateUrlDto, UrlResponseDto } from '../dto/url.dto';
+import { CreateUrlDto, UrlResponseDto, UpdateUrlDto } from '../dto/url.dto';
 import { UserService } from './user.service';
 import { DI_URL_REPOSITORY } from '../../configs/container-names';
 import { IUrlRepository } from '../interfaces/url-repository.interface';
@@ -25,8 +25,10 @@ export class UrlService implements OnModuleInit {
   async onModuleInit() {
     this.logger.log('Initializing UrlService - loading URLs from database');
     try {
-      this.urls = await this.urlRepository.findAll();
-      this.logger.log(`Loaded ${this.urls.length} URLs from database`);
+      const allUrls = await this.urlRepository.findAll();
+
+      this.urls = allUrls.filter(url => !url.deletedAt);
+      this.logger.log(`Loaded ${allUrls.length} URLs from database, ${this.urls.length} active URLs after filtering deleted ones`);
     } catch (error) {
       this.logger.error('Failed to load URLs from database', error);
       throw error;
@@ -98,10 +100,14 @@ export class UrlService implements OnModuleInit {
 
     try {
       // Incrementar contador de acesso no banco de dados
-      await this.urlRepository.incrementAccessCount(url.id);
+      await this.urlRepository.incrementAccessCountAndUpdate(url.id);
       
-      // Atualizar também na memória
-      url.accessCount++;
+      // Buscar o registro atualizado do banco para sincronizar com a memória
+      const updatedUrl = await this.urlRepository.findById(url.id);
+      if (updatedUrl) {
+        // Atualizar o registro na memória com os dados atualizados do banco
+        this.updateUrlInMemoryById(updatedUrl);
+      }
       
       this.logger.log(`Redirecting to: ${url.originalUrl}`);
       return url.originalUrl;
@@ -110,20 +116,6 @@ export class UrlService implements OnModuleInit {
       // Mesmo se falhar o incremento, retorna a URL original
       return url.originalUrl;
     }
-  }
-
-  /**
-   * Lista todas as URLs encurtadas
-   * Se userId for fornecido, filtra apenas as URLs do usuário
-   */
-  async getAllUrls(userId?: string | null): Promise<UrlResponseDto[]> {
-    this.logger.log(`Retrieving URLs${userId ? ` for user: ${userId}` : ' (all)'}`);
-    
-    const filteredUrls = userId 
-      ? this.urls.filter(url => url.userId === userId)
-      : this.urls;
-      
-    return Promise.all(filteredUrls.map(url => this.toResponseDto(url)));
   }
 
   /**
@@ -141,6 +133,101 @@ export class UrlService implements OnModuleInit {
     
     const userUrls = this.urls.filter(url => url.userId === userId);
     return Promise.all(userUrls.map(url => this.toResponseDto(url)));
+  }
+
+  /**
+   * Atualiza uma URL existente
+   * Só permite atualizar URLs que pertencem ao usuário autenticado
+   */
+  async updateUrl(shortCode: string, updateUrlDto: UpdateUrlDto, userId: string): Promise<UrlResponseDto> {
+    this.logger.log(`Updating URL with short code: ${shortCode} for user: ${userId}`);
+    
+    // Verificar se a URL existe
+    const existingUrl = this.urls.find(u => u.shortCode === shortCode);
+    if (!existingUrl) {
+      throw new NotFoundException(`URL with short code ${shortCode} not found`);
+    }
+
+    // Verificar se a URL pertence ao usuário autenticado
+    if (!existingUrl.userId || existingUrl.userId !== userId) {
+      throw new NotFoundException(`URL with short code ${shortCode} not found for this user`);
+    }
+
+    // Validar nova URL se fornecida
+    if (updateUrlDto.originalUrl && !this.isValidUrl(updateUrlDto.originalUrl)) {
+      throw new ConflictException('Invalid URL format');
+    }
+
+    // Se está mudando o shortCode, verificar se o novo não existe
+    if (updateUrlDto.shortCode && updateUrlDto.shortCode !== shortCode) {
+      const existingShortCode = this.urls.find(u => u.shortCode === updateUrlDto.shortCode);
+      if (existingShortCode) {
+        throw new ConflictException(`Short code ${updateUrlDto.shortCode} already exists`);
+      }
+    }
+
+    try {
+      // Preparar dados para atualização
+      const updateData: Partial<Url> = {};
+      if (updateUrlDto.originalUrl) {
+        updateData.originalUrl = updateUrlDto.originalUrl;
+      }
+      if (updateUrlDto.shortCode) {
+        updateData.shortCode = updateUrlDto.shortCode;
+      }
+
+      // Atualizar no banco de dados
+      const updatedUrl = await this.urlRepository.updateByShortCode(shortCode, updateData);
+      
+      if (!updatedUrl) {
+        throw new NotFoundException(`Failed to update URL with short code ${shortCode}`);
+      }
+
+      // Atualizar na memória
+      this.updateUrlInMemoryByShortCode(shortCode, updatedUrl);
+
+      this.logger.log(`Successfully updated URL with short code: ${shortCode}`);
+      const dateUpdate = new Date();
+      return this.toResponseDto(updatedUrl, dateUpdate);
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof ConflictException) {
+        throw error;
+      }
+      this.logger.error('Failed to update URL in database', error);
+      throw new ConflictException('Failed to update URL');
+    }
+  }
+
+  /**
+   * Deleta uma URL existente
+   * Só permite deletar URLs que pertencem ao usuário autenticado
+   */
+  async deleteUrl(shortCode: string, userId: string): Promise<void> {
+    this.logger.log(`Deleting URL with short code: ${shortCode} for user: ${userId}`);
+    
+    // Verificar se a URL existe
+    const existingUrl = this.urls.find(u => u.shortCode === shortCode);
+    if (!existingUrl) {
+      throw new NotFoundException(`URL with short code ${shortCode} not found`);
+    }
+
+    // Verificar se a URL pertence ao usuário autenticado
+    if (!existingUrl.userId || existingUrl.userId !== userId) {
+      throw new NotFoundException(`URL with short code ${shortCode} not found for this user`);
+    }
+
+    try {
+      // Deletar do banco de dados
+      await this.urlRepository.deleteByShortCode(shortCode);
+      
+      // Remover da lista em memória
+      this.removeUrlFromMemoryByShortCode(shortCode);
+
+      this.logger.log(`Successfully deleted URL with short code: ${shortCode}`);
+    } catch (error) {
+      this.logger.error('Failed to delete URL from database', error);
+      throw new ConflictException('Failed to delete URL');
+    }
   }
 
   /**
@@ -183,26 +270,53 @@ export class UrlService implements OnModuleInit {
   }
 
   /**
-   * Converte entidade para DTO de resposta
+   * Atualiza um registro na lista em memória baseado no ID
    */
-  private async toResponseDto(url: Url): Promise<UrlResponseDto> {
+  private updateUrlInMemoryById(updatedUrl: Url): void {
+    const index = this.urls.findIndex(u => u.id === updatedUrl.id);
+    if (index !== -1) {
+      this.urls[index] = updatedUrl;
+    }
+  }
+
+  /**
+   * Atualiza um registro na lista em memória baseado no shortCode
+   */
+  private updateUrlInMemoryByShortCode(shortCode: string, updatedUrl: Url): void {
+    const index = this.urls.findIndex(u => u.shortCode === shortCode);
+    if (index !== -1) {
+      this.urls[index] = updatedUrl;
+    }
+  }
+
+  /**
+   * Remove um registro da lista em memória baseado no shortCode
+   */
+  private removeUrlFromMemoryByShortCode(shortCode: string): void {
+    const index = this.urls.findIndex(u => u.shortCode === shortCode);
+    if (index !== -1) {
+      this.urls.splice(index, 1);
+    }
+  }
+
+  private async toResponseDto(url: Url, dateUpdate?: Date): Promise<UrlResponseDto> {
     const response: UrlResponseDto = {
       id: url.id,
       originalUrl: url.originalUrl,
       shortCode: url.shortCode,
       shortUrl: `${this.baseUrl}/${url.shortCode}`,
       createdAt: url.createdAt,
+      updatedAt: dateUpdate ? dateUpdate : undefined, // A entidade não tem updatedAt, então deixamos undefined
+      deletedAt: null, // A entidade não tem soft delete, então sempre null
       accessCount: url.accessCount,
     };
 
-    // Adicionar informações do usuário se a URL pertencer a alguém
     if (url.userId) {
       try {
         const user = await this.userService.findById(url.userId);
         response.userId = url.userId;
         response.userName = user.name;
       } catch (error) {
-        // Se o usuário não existir mais, apenas log o erro
         this.logger.warn(`User ${url.userId} not found for URL ${url.id}`);
       }
     }

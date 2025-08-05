@@ -7,6 +7,7 @@ export interface IUrlRepository {
   findByShortCode(shortCode: string): Promise<Url | null>;
   findByUserId(userId: string): Promise<Url[]>;
   update(id: string, updateData: Partial<Url>): Promise<Url | null>;
-  incrementAccessCount(id: string): Promise<void>;
-  delete(id: string): Promise<boolean>;
+  updateByShortCode(shortCode: string, updateData: Partial<Url>): Promise<Url | null>;
+  incrementAccessCountAndUpdate(id: string): Promise<void>;
+  deleteByShortCode(shortCode: string): Promise<boolean>;
 }
